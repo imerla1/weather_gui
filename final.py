@@ -13,8 +13,38 @@ from tkinter import Text
 from time import strftime
 import time
 from datetime import datetime as dt
+from time import sleep
+from default_distance import default_distance, travel_time
+
+# Loading Screen Section
 
 
+'''def task():
+    # The window will stay open until this function call ends.
+    sleep(5)  # Replace this with the code you want to run
+    Loading_screen.destroy()
+
+
+Loading_screen = tk.Tk()
+Loading_screen.title("Weather For life")
+Loading_screen.attributes("-fullscreen", True)
+x_ = Loading_screen.winfo_screenwidth()
+y_ = Loading_screen.winfo_screenheight()
+size = x_, y_
+im = Image.open("load.png")
+im_resized = im.resize(size, Image.ANTIALIAS)
+im_resized.save("main_loading.png", "PNG")
+new_im = ImageTk.PhotoImage(Image.open('main_loading.png'))
+load_label = Label(Loading_screen, image=new_im)
+load_label.pack()
+
+Loading_screen.after(200, task)
+Loading_screen.mainloop()'''
+
+
+# required to make window show before the program gets to the mainloop
+
+# From there starts Main window
 def _from_rgb(rgb):
     """translates an rgb tuple of int to a tkinter friendly color code
     """
@@ -42,11 +72,12 @@ def set_date():
     formated = f'{now.month}/{now.day}/{now.year}'
     date_var.set(formated)
 
+
 def set_location_to_map():
     try:
         map_hooray = folium.Map(location=[lat, long],
 
-                                zoom_start = 12)
+                                zoom_start=12)
         folium.Marker([lat, long]).add_to(map_hooray)
 
         map_hooray.save('index.html')
@@ -58,11 +89,33 @@ def set_location_to_map():
             messagebox.showerror('Error', 'Pls enter city or\nCountry name')
 
 
+def settings():  # TODO: Settings Button
+    pass
+
+def check_map():
+    Tbilisi = (41.69, 44.8)
+    points = [Tbilisi, (lat, long)]
+    my_map = folium.Map(location=Tbilisi, zoom_start=5)
+    for j in points:
+        folium.Marker(j).add_to(my_map)
+    folium.PolyLine(points, color="red", weight=2.5, opacity=1).add_to(my_map)
+    my_map.save('index.html')
+    webbrowser.open('file://' + os.path.realpath('index.html'))
+
+
+'''def distance_():
+    app = Info()
+    app.get_personal_info()
+    from_addr = app.city
+    to_addrs = main()
+    unformated = 'https://www.distance24.org/route.json?stops={}|{}'.format(from_addr, to_addrs)
+    req_ = requests.get(unformated)
+    dw = req_.json()
+    distance = dw['distance']
+    return distance'''
 
 # Canvas Sector
 # Canvas For Current Information
-
-
 # Background Canvas For information
 main_canvas = Canvas(root, width=x-300, height=y-30)
 main_canvas.place(x=300, y=30)
@@ -99,6 +152,11 @@ personal_canvas = Canvas(main_canvas, width=370, height=220)
 personal_canvas.place(x=420, y=500)
 personal_info_img = ImageTk.PhotoImage(Image.open('pers_info1.png'))
 personal_canvas.create_image(265, 12, image=personal_info_img)
+# Canvas For Distance Between your country and Endpoint child for background Canvas
+distance_canvas = Canvas(main_canvas, width=370, height=220)
+distance_canvas.place(x=827, y=500)
+distance_header = ImageTk.PhotoImage(Image.open('distance_header.png'))
+distance_canvas.create_image(195, 15, image=distance_header)
 
 
 def personal_window():
@@ -146,6 +204,7 @@ def main():
         req = requests.get(url_base.format(x, APIKEY))
         response = req.json()
         country = response['sys']['country']
+
         city = response['name']
         global lat
         global long
@@ -173,6 +232,11 @@ def main():
                 humidity = main['humidity']
             if wind_speed is None:
                 wind_speed = response['wind']['speed']
+        url_format = 'https://www.distance24.org/route.json?stops={}|{}'
+        distance_request = requests.get(url_format.format('Tbilisi', city))
+        distance_respones = distance_request.json()
+        new_dist = distance_respones['distance']
+        print(new_dist)
 
         main_canvas.itemconfig(w, text=f'{city}, {country} ({lat}, {long})')
         main_canvas.itemconfig(des, text=f'{description}')
@@ -180,6 +244,9 @@ def main():
         curr_canvas.itemconfig(humidity_can, text=f'{humidity}%')
         curr_canvas.itemconfig(wind_can, text=f'{wind_speed} M/S')
         curr_canvas.itemconfig(press_can, text=f'{pressure} Hpa')
+        distance_canvas.itemconfig(dist_addr_canv, text=f'{new_dist} KM')
+        distance_canvas.itemconfig(to_addr_canv, text=f' To {city} ')
+        distance_canvas.itemconfig(travel_time, text=f'{round(new_dist/800, 2)} Hour')
     except:
         messagebox.showerror('Error!', 'OOPS please Enter Country\n or city name corectly')
 
@@ -189,6 +256,14 @@ search_button = Button(scanvas, bg=_from_rgb((255, 102, 0)), command=main)
 search_img = ImageTk.PhotoImage(Image.open('search1.png'))
 search_button.config(image=search_img)
 search_button.place(x=180, y=47)
+# Settings Button
+setting_button = Button(scanvas, bg=_from_rgb((59, 58, 60)))
+setting_img = ImageTk.PhotoImage(Image.open('32.png'))
+setting_button.config(image=setting_img)
+setting_button.place(x=30, y=y-160)
+# Check on folium map Button
+check_on_map = ttk.Button(distance_canvas, text='Check on map', command=check_map)
+check_on_map.place(x=120, y=180)
 # Country code for better result text
 text = 'Add the country code for better results.\n \tEx: London, UK'
 scanvas.create_text(130, 95, text=text, fill=_from_rgb((0, 204, 255)),
@@ -201,11 +276,15 @@ def make_default_window():
     obj.get_personal_info()
     url_base = 'http://api.openweathermap.org/data/2.5/weather?q={}&appid={}'
     APIKEY = '3fcb9950908ddd9b5672e2a29e4842a2'
+    global city_name
+    global travel_time
+    global dist_addr_canv
     city_name = obj.city
     country_name = obj.country
     global w  # Country lat long canvas
     global des  # Country desc
     global te  # Country temprature
+    global to_addr_canv
     # Current Canvas
     global humidity_can
     global wind_can
@@ -276,21 +355,35 @@ def make_default_window():
                                         font="Helvetica 15 bold",
                                         fill=_from_rgb((50, 50, 50))
                                         )
-def check_time():
-    now = dt.now()
-    if now.second > 30:
-        moon_img = ImageTk.PhotoImage(Image.open('moon_main.png'))
-        main_canvas.create_image(x-700, 300, image=moon_img)
-    else:
-        sunny_img = ImageTk.PhotoImage(Image.open('sunny.png'))
-        main_canvas.create_image(x-700, 300, image=sunny_img)
-
+    distance_canvas.create_text(100, 70,
+                                        text=f'from {city_name}   -',
+                                        font="Helvetica 15 bold",
+                                        fill=_from_rgb((50, 50, 50))
+                                        )
+    to_addr_canv = distance_canvas.create_text(240, 70,
+                                        text='To Moscow',
+                                        font="Helvetica 15 bold",
+                                        fill=_from_rgb((50, 50, 50))
+                                        )
+    dist_addr_canv = distance_canvas.create_text(180, 110,
+                                        text=f'{default_distance()} KM',
+                                        font="Helvetica 15 bold",
+                                        fill=_from_rgb((50, 50, 50))
+                                        )
+    distance_canvas.create_text(125, 160,
+                                        text='travel time with plane:',
+                                        font="Helvetica 15 bold",
+                                        fill=_from_rgb((50, 50, 50))
+                                        )
+    travel_time = distance_canvas.create_text(287, 160, text=f'{default_distance()/800} Hour',
+                                                font="Helvetica 15 bold")
 
 if __name__ == '__main__':
+
     make_default_window()
     personal_window()
     set_time()
     set_date()
-    check_time()
-    #set_location_to_map()
+
+    # set_location_to_map()
     root.mainloop()
